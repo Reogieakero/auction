@@ -46,6 +46,15 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "FIREBASE_API_KEY": "AIzaSyCN8x2x-fsRhJmWe5ADJG4v4ZnQ-MjBiAU",
+      "FIREBASE_AUTH_DOMAIN": "auction-11755.firebaseapp.com",
+      "FIREBASE_PROJECT_ID": "auction-11755",
+      "FIREBASE_STORAGE_BUCKET": "auction-11755.firebasestorage.app",
+      "FIREBASE_MESSAGING_SENDER_ID": "161946069616",
+      "FIREBASE_APP_ID": "1:161946069616:web:6ada771ea1a2aa0c3f22b5",
+      "BACKEND_URL": "http://192.168.1.6:3000"
     }
   }
 }

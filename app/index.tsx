@@ -1,5 +1,6 @@
 import OnboardingScreen from '@/components/onboarding/OnboardingScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
@@ -16,7 +17,11 @@ export default function Index() {
   const checkOnboarding = async () => {
     try {
       const value = await AsyncStorage.getItem(ONBOARDING_KEY);
-      setShowOnboarding(value === null);
+      if (value === null) {
+        setShowOnboarding(true);
+      } else {
+        (router as any).replace('/(auth)/sign-in');
+      }
     } catch {
       setShowOnboarding(true);
     } finally {
@@ -26,6 +31,7 @@ export default function Index() {
 
   const handleFinish = async () => {
     await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+    (router as any).replace('/(auth)/sign-in');
   };
 
   if (loading) {

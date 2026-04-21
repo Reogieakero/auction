@@ -13,12 +13,15 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
-  const [theme, setTheme] = useState<ThemeMode>(systemColorScheme ?? 'dark');
+  
+  const [theme, setTheme] = useState<ThemeMode>((systemColorScheme as ThemeMode) ?? 'dark');
 
   useEffect(() => {
     const loadTheme = async () => {
       const savedTheme = await AsyncStorage.getItem('userTheme');
-      if (savedTheme) setTheme(savedTheme as ThemeMode);
+      if (savedTheme) {
+        setTheme(savedTheme as ThemeMode);
+      }
     };
     loadTheme();
   }, []);

@@ -59,21 +59,11 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) => <ShoppingBag size={24} color={color} />,
         }}
       />
-      
-      {/* 1. Main Profile Tab */}
       <Tabs.Screen
-        name="profile/index"
+        name="profile"
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => <User size={24} color={color} />,
-        }}
-      />
-
-      {/* 2. Hide the components folder from the Bottom Bar */}
-      <Tabs.Screen
-        name="profile/components/UserGrid"
-        options={{
-          href: null,
         }}
       />
     </Tabs>

@@ -1,39 +1,18 @@
-import { Colors } from '@/constants/Colors';
-import { useTheme } from '@/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { useProfile } from '@/hooks/useProfile';
+import LogoutModal from './components/LogoutModal';
 import UserGrid from './components/UserGrid';
 
 export default function ProfileScreen() {
-  const [user, setUser] = useState<any>(null);
-  const [logoutVisible, setLogoutVisible] = useState(false);
-  const { theme: themeKey, toggleTheme } = useTheme();
-  const theme = Colors[themeKey as keyof typeof Colors] || Colors.light;
-
-  useEffect(() => {
-    const loadUser = async () => {
-      const stored = await AsyncStorage.getItem('firebaseUser');
-      if (stored) setUser(JSON.parse(stored));
-    };
-    loadUser();
-  }, []);
-
-  const confirmLogout = async () => {
-    try {
-      setLogoutVisible(false);
-      await AsyncStorage.removeItem('firebaseUser');
-      router.replace('/(auth)/sign-in');
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const ringColor = themeKey === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
-  const blobColor = themeKey === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)';
+  const { 
+    user, theme, themeKey, toggleTheme, 
+    logoutVisible, setLogoutVisible, confirmLogout, 
+    handleOpenShop, ringColor, blobColor 
+  } = useProfile();
 
   const StatItem = ({ label, value }: { label: string; value: string }) => (
     <View style={styles.statBox}>
@@ -44,11 +23,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
-      <StatusBar 
-        barStyle={themeKey === 'dark' ? "light-content" : "dark-content"} 
-        backgroundColor="transparent"
-        translucent
-      />
+      <StatusBar barStyle={themeKey === 'dark' ? "light-content" : "dark-content"} backgroundColor="transparent" translucent />
       
       <View style={[styles.ring1, { borderColor: ringColor }]} pointerEvents="none" />
       <View style={[styles.ring2, { borderColor: ringColor }]} pointerEvents="none" />
@@ -59,11 +34,7 @@ export default function ProfileScreen() {
           <Text style={[styles.headerTitle, { color: theme.text }]}>Vault Profile</Text>
           <View style={styles.topIcons}>
             <TouchableOpacity onPress={toggleTheme} style={styles.iconBtn}>
-              <Ionicons 
-                name={themeKey === 'dark' ? "sunny-outline" : "moon-outline"} 
-                size={24} 
-                color={theme.text} 
-              />
+              <Ionicons name={themeKey === 'dark' ? "sunny-outline" : "moon-outline"} size={24} color={theme.text} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setLogoutVisible(true)} style={[styles.iconBtn, { marginLeft: 16 }]}>
               <Ionicons name="log-out-outline" size={24} color="#FF3B30" /> 
@@ -79,23 +50,17 @@ export default function ProfileScreen() {
                </View>
             </View>
           </View>
-          
           <View style={styles.infoWrapper}>
-            <Text style={[styles.displayName, { color: theme.text }]}>
-              {user?.displayName || 'VIP Collector'}
-            </Text>
+            <Text style={[styles.displayName, { color: theme.text }]}>{user?.displayName || 'VIP Collector'}</Text>
             <View style={styles.statsRow}>
-              <StatItem label="Won" value="12" />
-              <StatItem label="Bids" value="48" />
-              <StatItem label="Rank" value="#4" />
+              <StatItem label="Won" value="12" /><StatItem label="Bids" value="48" /><StatItem label="Rank" value="#4" />
             </View>
           </View>
         </View>
 
         <View style={styles.bioSection}>
           <Text style={[styles.bioText, { color: theme.secondaryText }]}>
-            Sourcing the worlds finest digital assets and physical rarities. 
-            Member since 2024.
+            Sourcing the worlds finest digital assets and physical rarities. Member since 2024.
           </Text>
         </View>
 
@@ -103,6 +68,14 @@ export default function ProfileScreen() {
           <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: theme.text }]}>
             <Text style={[styles.mainActionText, { color: theme.background }]}>Edit Profile</Text>
           </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.secondaryActionBtn, { borderColor: theme.text + '30' }]}
+            onPress={handleOpenShop}
+          >
+            <Ionicons name="storefront-outline" size={20} color={theme.text} />
+          </TouchableOpacity>
+
           <TouchableOpacity style={[styles.secondaryActionBtn, { borderColor: theme.text + '30' }]}>
             <Ionicons name="share-social-outline" size={20} color={theme.text} />
           </TouchableOpacity>
@@ -111,33 +84,12 @@ export default function ProfileScreen() {
         <UserGrid theme={theme} />
       </ScrollView>
 
-      <Modal visible={logoutVisible} transparent animationType="fade">
-        <Pressable style={styles.modalOverlay} onPress={() => setLogoutVisible(false)}>
-          <View style={[styles.logoutCard, { backgroundColor: theme.background }]}>
-            <View style={styles.logoutContent}>
-              <Text style={[styles.logoutTitle, { color: theme.text }]}>Sign Out</Text>
-              <Text style={[styles.logoutSubtitle, { color: theme.secondaryText }]}>
-                Are you sure you want to log out?
-              </Text>
-            </View>
-            
-            <View style={styles.modalActionRow}>
-              <TouchableOpacity 
-                style={styles.modalBtn} 
-                onPress={() => setLogoutVisible(false)}
-              >
-                <Text style={[styles.cancelBtnText, { color: theme.secondaryText }]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.modalBtn} 
-                onPress={confirmLogout}
-              >
-                <Text style={styles.logoutBtnText}>Logout</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Pressable>
-      </Modal>
+      <LogoutModal 
+        visible={logoutVisible} 
+        theme={theme} 
+        onClose={() => setLogoutVisible(false)} 
+        onConfirm={confirmLogout} 
+      />
     </SafeAreaView>
   );
 }
@@ -168,14 +120,4 @@ const styles = StyleSheet.create({
   mainActionBtn: { flex: 1, height: 46, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   mainActionText: { fontWeight: '700', fontSize: 15 },
   secondaryActionBtn: { width: 46, height: 46, borderRadius: 12, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
-  
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 16 },
-  logoutCard: { width: '100%', padding: 20, elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 },
-  logoutContent: { marginBottom: 20 },
-  logoutTitle: { fontSize: 18, fontWeight: '800', marginBottom: 4 },
-  logoutSubtitle: { fontSize: 14, fontWeight: '500' },
-  modalActionRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 24 },
-  modalBtn: { paddingVertical: 8, paddingHorizontal: 4 },
-  cancelBtnText: { fontSize: 14, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
-  logoutBtnText: { fontSize: 14, fontWeight: '800', color: '#FF3B30', textTransform: 'uppercase', letterSpacing: 1 }
 });

@@ -1,16 +1,15 @@
 import { AnimatedInput } from '@/components/ui/AnimatedInput';
-import { auth } from '@/constants/firebaseConfig';
+import { useAuthAnimations } from '@/hooks/useAuthAnimations';
+import { useAuthAPI } from '@/hooks/useAuthAPI';
+import { useSignUpForm } from '@/hooks/useSignUpForm';
+import { useSignUpProgressBar } from '@/hooks/useSignUpProgressBar';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
     ActivityIndicator,
     Animated,
     KeyboardAvoidingView,
-    LayoutAnimation,
     Platform,
     Pressable,
     ScrollView,
@@ -22,140 +21,41 @@ import {
 } from 'react-native';
 
 export default function SignUpScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [showConfirmStep, setShowConfirmStep] = useState(false);
-
-  const fadeTitle = useRef(new Animated.Value(0)).current;
-  const slideTitle = useRef(new Animated.Value(24)).current;
-  const fadeForm = useRef(new Animated.Value(0)).current;
-  const slideForm = useRef(new Animated.Value(32)).current;
-  const fadeFooter = useRef(new Animated.Value(0)).current;
-  const progressBarWidth = useRef(new Animated.Value(0.5)).current;
-  const confirmAnim = useRef(new Animated.Value(0)).current;
-  const btnScale = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(fadeTitle, { toValue: 1, duration: 500, useNativeDriver: true }),
-        Animated.spring(slideTitle, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }),
-      ]),
-      Animated.parallel([
-        Animated.timing(fadeForm, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(slideForm, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }),
-      ]),
-      Animated.timing(fadeFooter, { toValue: 1, duration: 300, useNativeDriver: true }),
-    ]).start();
-  }, [fadeTitle, slideTitle, fadeForm, slideForm, fadeFooter]);
+  const { email, setEmail, password, setPassword, confirmPassword, setConfirmPassword, showPassword, setShowPassword, showConfirm, setShowConfirm, loading, setLoading, showConfirmStep, setShowConfirmStep, validateForm, createUser } = useSignUpForm();
+  const { fadeTitle, slideTitle, fadeForm, slideForm, fadeFooter, btnScale, animateButton } = useAuthAnimations();
+  const { progressBarWidth, confirmAnim } = useSignUpProgressBar(password, showConfirmStep);
+  const { sendOTP } = useAuthAPI();
 
   useEffect(() => {
     if (password.length > 0 && !showConfirmStep) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setShowConfirmStep(true);
-      Animated.parallel([
-        Animated.spring(confirmAnim, { toValue: 1, useNativeDriver: true }),
-        Animated.timing(progressBarWidth, { toValue: 1, duration: 400, useNativeDriver: false })
-      ]).start();
     }
-  }, [password, showConfirmStep, confirmAnim, progressBarWidth]);
-
-  const animateButton = (toValue: number) => {
-    Animated.spring(btnScale, {
-      toValue,
-      friction: 4,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
-  };
+  }, [password, showConfirmStep, setShowConfirmStep]);
 
   const handleSignUp = async () => {
-    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
-      alert('Please fill in all fields');
+    if (!validateForm()) {
       setLoading(false);
       return;
     }
 
-    if (password !== confirmPassword) {
-      alert('Passwords do not match');
+    const result = await createUser();
+    if (!result.success) {
+      alert(result.error || 'Sign-up failed');
+      return;
+    }
+
+    const otpResult = await sendOTP(result.userEmail || email);
+    if (!otpResult.success) {
+      alert(`Account created, but failed to send verification code: ${otpResult.message}. Please try again or resend later.`);
       setLoading(false);
       return;
     }
 
-    if (password.length < 8) {
-      alert('Password must be at least 8 characters');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      const firebaseToken = await user.getIdToken();
-
-      // Store email temporarily for verification
-      await AsyncStorage.setItem('signupEmail', user.email || email);
-
-      // Store user data but mark as not verified yet
-      await AsyncStorage.setItem('firebaseToken', firebaseToken);
-      await AsyncStorage.setItem('firebaseUser', JSON.stringify({
-        uid: user.uid,
-        email: user.email || '',
-        displayName: user.displayName || user.email || '',
-      }));
-
-      console.log('Sign-up successful. Sending OTP to email...');
-      
-      // Send OTP email via backend
-      try {
-        const backendUrl = Constants.expoConfig?.extra?.BACKEND_URL || 'http://192.168.1.6:3000';
-        const response = await fetch(`${backendUrl}/api/send-otp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: user.email || email }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || 'Failed to send verification code');
-        }
-
-        console.log('OTP sent successfully');
-        
-        // Show a message about OTP being sent
-        alert(`Account created! A verification code has been sent to ${user.email || email}. Please check your email.`);
-        
-        setLoading(false);
-        router.replace('/(auth)/verify-otp');
-      } catch (emailError: any) {
-        console.error('Error sending OTP email:', emailError);
-        alert(`Account created, but failed to send verification code: ${emailError.message}. Please try again or resend later.`);
-        setLoading(false);
-      }
-    } catch (error: any) {
-      console.error('Sign-up error:', error);
-      let errorMessage = 'Sign-up failed';
-      
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'Email is already registered. Please sign in instead.';
-      } else if (error.code === 'auth/weak-password') {
-        errorMessage = 'Password is too weak. Use at least 8 characters.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      alert(errorMessage);
-      setLoading(false);
-    }
+    alert(`Account created! A verification code has been sent to ${result.userEmail || email}. Please check your email.`);
+    setLoading(false);
+    router.replace('/(auth)/verify-otp');
   };
+
 
   return (
     <View style={styles.root}>

@@ -1,98 +1,31 @@
 import { AnimatedInput } from '@/components/ui/AnimatedInput';
-import { auth } from '@/constants/firebaseConfig';
+import { useAuthAnimations } from '@/hooks/useAuthAnimations';
+import { useSignInForm } from '@/hooks/useSignInForm';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import {
-    ActivityIndicator,
-    Animated,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const fadeTitle = useRef(new Animated.Value(0)).current;
-  const slideTitle = useRef(new Animated.Value(24)).current;
-  const fadeForm = useRef(new Animated.Value(0)).current;
-  const slideForm = useRef(new Animated.Value(32)).current;
-  const fadeFooter = useRef(new Animated.Value(0)).current;
-  const btnScale = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(fadeTitle, { toValue: 1, duration: 500, useNativeDriver: true }),
-        Animated.spring(slideTitle, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }),
-      ]),
-      Animated.parallel([
-        Animated.timing(fadeForm, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(slideForm, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }),
-      ]),
-      Animated.timing(fadeFooter, { toValue: 1, duration: 300, useNativeDriver: true }),
-    ]).start();
-  }, [fadeTitle, slideTitle, fadeForm, slideForm, fadeFooter]);
-
-  const animateButton = (toValue: number) => {
-    Animated.spring(btnScale, {
-      toValue,
-      friction: 4,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
-  };
+  const { email, setEmail, password, setPassword, showPassword, setShowPassword, loading, signInUser } = useSignInForm();
+  const { fadeTitle, slideTitle, fadeForm, slideForm, fadeFooter, btnScale, animateButton } = useAuthAnimations();
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      alert('Please enter both email and password');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      const firebaseToken = await user.getIdToken();
-
-      await AsyncStorage.setItem('firebaseToken', firebaseToken);
-      await AsyncStorage.setItem('firebaseUser', JSON.stringify({
-        uid: user.uid,
-        email: user.email || '',
-        displayName: user.displayName || user.email || '',
-      }));
-
-      console.log('Sign-in successful. Redirecting to home...');
-      setLoading(false);
+    const result = await signInUser();
+    if (result.success) {
       router.replace('/home');
-    } catch (error: any) {
-      console.error('Sign-in error:', error);
-      let errorMessage = 'Sign-in failed';
-      
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = 'Email not found. Please sign up first.';
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      alert(errorMessage);
-      setLoading(false);
     }
   };
 

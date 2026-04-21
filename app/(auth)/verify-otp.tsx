@@ -1,8 +1,10 @@
+import { useAuthAnimations } from '@/hooks/useAuthAnimations';
+import { useAuthAPI } from '@/hooks/useAuthAPI';
+import { useVerifyOTPForm } from '@/hooks/useVerifyOTPForm';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import {
     ActivityIndicator,
     Animated,
@@ -18,136 +20,46 @@ import {
 } from 'react-native';
 
 export default function VerifyOTPScreen() {
-    const [otp, setOtp] = useState('');
-    const [email, setEmail] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [resendTimer, setResendTimer] = useState(0);
-    const [errorMessage, setErrorMessage] = useState('');
-
-    const fadeTitle = useRef(new Animated.Value(0)).current;
-    const slideTitle = useRef(new Animated.Value(24)).current;
-    const fadeForm = useRef(new Animated.Value(0)).current;
-    const slideForm = useRef(new Animated.Value(32)).current;
-    const fadeFooter = useRef(new Animated.Value(0)).current;
-    const btnScale = useRef(new Animated.Value(1)).current;
-
-    useEffect(() => {
-        // Get email from navigation params
-        const getEmail = async () => {
-            const storedEmail = await AsyncStorage.getItem('signupEmail');
-            if (storedEmail) {
-                setEmail(storedEmail);
-            } else {
-                // Fallback: try to get from router params
-                router.back();
-            }
-        };
-        getEmail();
-
-        Animated.sequence([
-            Animated.parallel([
-                Animated.timing(fadeTitle, { toValue: 1, duration: 500, useNativeDriver: true }),
-                Animated.spring(slideTitle, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }),
-            ]),
-            Animated.parallel([
-                Animated.timing(fadeForm, { toValue: 1, duration: 400, useNativeDriver: true }),
-                Animated.spring(slideForm, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }),
-            ]),
-            Animated.timing(fadeFooter, { toValue: 1, duration: 300, useNativeDriver: true }),
-        ]).start();
-    }, []);
-
-    // Resend timer
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (resendTimer > 0) {
-            interval = setInterval(() => {
-                setResendTimer(prev => prev - 1);
-            }, 1000);
-        }
-        return () => clearInterval(interval);
-    }, [resendTimer]);
-
-    const animateButton = (toValue: number) => {
-        Animated.spring(btnScale, {
-            toValue,
-            tension: 100,
-            friction: 5,
-            useNativeDriver: true,
-        }).start();
-    };
+    const { otp, setOtp, email, loading, setLoading, resendTimer, errorMessage, setErrorMessage, validateOTP, setResendCooldown } = useVerifyOTPForm();
+    const { fadeTitle, slideTitle, fadeForm, slideForm, fadeFooter, btnScale, animateButton } = useAuthAnimations();
+    const { verifyOTP, resendOTP } = useAuthAPI();
 
     const handleVerifyOTP = async () => {
-        if (!otp || otp.length < 6) {
-            setErrorMessage('Please enter a valid 6-digit OTP');
+        if (!validateOTP()) {
             return;
         }
 
-        try {
-            setLoading(true);
-            setErrorMessage('');
-
-            // Verify OTP via backend
-            const backendUrl = Constants.expoConfig?.extra?.BACKEND_URL || 'http://192.168.1.6:3000';
-            const response = await fetch(`${backendUrl}/api/verify-otp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, otp }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                setErrorMessage(data.message || 'Failed to verify code. Please try again.');
-                setLoading(false);
-                return;
-            }
-
-            // OTP is correct, mark email as verified
-            await AsyncStorage.setItem('emailVerified', 'true');
-            await AsyncStorage.removeItem('signupEmail');
-            
-            console.log('OTP verified successfully. Redirecting to home...');
+        setLoading(true);
+        const result = await verifyOTP(email, otp);
+        
+        if (!result.success) {
+            setErrorMessage(result.message);
             setLoading(false);
-            router.replace('/home');
-        } catch (error: any) {
-            console.error('OTP verification error:', error);
-            setErrorMessage('Verification failed. Please try again.');
-            setLoading(false);
+            return;
         }
+
+        await AsyncStorage.setItem('emailVerified', 'true');
+        await AsyncStorage.removeItem('signupEmail');
+        
+        setLoading(false);
+        router.replace('/home');
     };
 
     const handleResendOTP = async () => {
         if (resendTimer > 0) return;
 
-        try {
-            setLoading(true);
-            
-            // Resend OTP via backend
-            const backendUrl = Constants.expoConfig?.extra?.BACKEND_URL || 'http://192.168.1.6:3000';
-            const response = await fetch(`${backendUrl}/api/resend-otp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                setErrorMessage(data.message || 'Failed to resend code. Please try again.');
-                setLoading(false);
-                return;
-            }
-
-            setResendTimer(60);
-            setErrorMessage('');
-            alert(`Verification code has been resent to ${email}`);
+        setLoading(true);
+        const result = await resendOTP(email);
+        
+        if (!result.success) {
+            setErrorMessage(result.message);
             setLoading(false);
-        } catch (error: any) {
-            console.error('Resend OTP error:', error);
-            setErrorMessage('Failed to resend verification code. Please try again.');
-            setLoading(false);
+            return;
         }
+
+        setResendCooldown();
+        alert(`Verification code has been resent to ${email}`);
+        setLoading(false);
     };
 
     return (
@@ -163,7 +75,7 @@ export default function VerifyOTPScreen() {
                     <Animated.View style={[styles.header, { opacity: fadeTitle, transform: [{ translateY: slideTitle }] }]}>
                         <Text style={styles.eyebrow}>Verify Email</Text>
                         <Text style={styles.title}>Enter OTP</Text>
-                        <Text style={styles.subtitle}>We've sent a 6-digit code to {email || 'your email'}. Please enter it below.</Text>
+                        <Text style={styles.subtitle}>Weve sent a 6-digit code to {email || 'your email'}. Please enter it below.</Text>
                     </Animated.View>
 
                     <Animated.View style={[styles.form, { opacity: fadeForm, transform: [{ translateY: slideForm }] }]}>
@@ -206,7 +118,7 @@ export default function VerifyOTPScreen() {
                         </Animated.View>
 
                         <View style={styles.resendContainer}>
-                            <Text style={styles.resendText}>Didn't receive code? </Text>
+                            <Text style={styles.resendText}>Didnt receive code? </Text>
                             <TouchableOpacity 
                                 onPress={handleResendOTP} 
                                 disabled={resendTimer > 0 || loading}

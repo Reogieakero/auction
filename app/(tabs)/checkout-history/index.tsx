@@ -1,3 +1,5 @@
+import { Colors } from '@/constants/Colors';
+import { useTheme } from '@/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -12,6 +14,8 @@ type HistoryItem = {
 };
 
 export default function CheckoutHistoryScreen() {
+  const { theme: themeKey } = useTheme();
+  const theme = Colors[themeKey as keyof typeof Colors];
   const [history] = useState<HistoryItem[]>([
     { id: '1', itemName: 'Vintage Watch', amount: 150, date: 'Mar 15, 2026', status: 'completed' },
     { id: '2', itemName: 'Leather Bag', amount: 200, date: 'Mar 10, 2026', status: 'completed' },
@@ -21,41 +25,33 @@ export default function CheckoutHistoryScreen() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
-        return '#10B981';
-      case 'pending':
-        return '#F59E0B';
-      case 'cancelled':
-        return '#EF4444';
-      default:
-        return '#FFFFFF';
+      case 'completed': return '#10B981';
+      case 'pending': return '#F59E0B';
+      case 'cancelled': return '#EF4444';
+      default: return theme.text;
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
-        return 'checkmark-circle';
-      case 'pending':
-        return 'time';
-      case 'cancelled':
-        return 'close-circle';
-      default:
-        return 'help-circle';
+      case 'completed': return 'checkmark-circle';
+      case 'pending': return 'time';
+      case 'cancelled': return 'close-circle';
+      default: return 'help-circle';
     }
   };
 
   const renderHistoryItem = ({ item }: { item: HistoryItem }) => (
-    <TouchableOpacity style={styles.historyCard}>
+    <TouchableOpacity style={[styles.historyCard, { backgroundColor: theme.card }]}>
       <View style={styles.itemInfo}>
-        <Text style={styles.itemName}>{item.itemName}</Text>
-        <Text style={styles.date}>{item.date}</Text>
+        <Text style={[styles.itemName, { color: theme.text }]}>{item.itemName}</Text>
+        <Text style={[styles.date, { color: theme.secondaryText }]}>{item.date}</Text>
       </View>
       <View style={styles.rightContent}>
-        <Text style={styles.amount}>${item.amount}</Text>
+        <Text style={[styles.amount, { color: theme.text }]}>${item.amount}</Text>
         <View style={{ alignItems: 'center' }}>
           <Ionicons
-            name={getStatusIcon(item.status)}
+            name={getStatusIcon(item.status) as any}
             size={20}
             color={getStatusColor(item.status)}
           />
@@ -68,12 +64,11 @@ export default function CheckoutHistoryScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Checkout History</Text>
-        <Text style={styles.subtitle}>Your purchase history</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Checkout History</Text>
+        <Text style={[styles.subtitle, { color: theme.secondaryText }]}>Your purchase history</Text>
       </View>
-
       <FlatList
         data={history}
         keyExtractor={(item) => item.id}
@@ -86,62 +81,16 @@ export default function CheckoutHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 24,
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-  },
-  listContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-  },
-  historyCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  itemInfo: {
-    flex: 1,
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  date: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  rightContent: {
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  amount: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  status: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
+  root: { flex: 1 },
+  header: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 },
+  title: { fontSize: 34, fontWeight: '800', marginBottom: 8 },
+  subtitle: { fontSize: 14 },
+  listContainer: { paddingHorizontal: 16, paddingBottom: 32 },
+  historyCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 12, padding: 16, marginBottom: 12 },
+  itemInfo: { flex: 1 },
+  itemName: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  date: { fontSize: 12 },
+  rightContent: { alignItems: 'flex-end', gap: 8 },
+  amount: { fontSize: 16, fontWeight: '800' },
+  status: { fontSize: 10, fontWeight: '600' },
 });

@@ -1,74 +1,81 @@
+import { Colors } from '@/constants/Colors';
+import { useTheme } from '@/context/ThemeContext';
 import { Tabs } from 'expo-router';
+import { Gavel, Home, Package, ShoppingBag, User } from 'lucide-react-native';
 import React from 'react';
 import { Platform } from 'react-native';
-// Ensure these are coming from lucide-react-native
-import { Gavel, Home, Package, ShoppingBag, User } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const { theme: themeKey } = useTheme();
+  const theme = Colors[themeKey as keyof typeof Colors];
+
   return (
     <Tabs
-  screenOptions={{
-    headerShown: false,
-    tabBarActiveTintColor: '#FFFFFF',
-    tabBarInactiveTintColor: 'rgba(255,255,255,0.4)',
-    tabBarShowLabel: true,
-    tabBarStyle: {
-      backgroundColor: '#0A0A0A',
-      borderTopColor: 'rgba(255,255,255,0.1)',
-      borderTopWidth: 1,
-      height: Platform.OS === 'ios' ? 80 : 60,
-      paddingBottom: Platform.OS === 'ios' ? 20 : 8,
-    },
-    tabBarLabelStyle: {
-      fontSize: 11,
-      marginTop: 4,
-    },
-  }}
->
-  {/* 1. Home - points to home/index.tsx */}
-  <Tabs.Screen
-    name="home/index"
-    options={{
-      title: 'Home',
-      tabBarIcon: ({ color }) => <Home size={24} color={color} />,
-    }}
-  />
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: theme.text,
+        tabBarInactiveTintColor: theme.secondaryText,
+        tabBarShowLabel: true,
+        tabBarStyle: {
+          backgroundColor: theme.background,
+          borderTopColor: theme.border,
+          borderTopWidth: 1,
+          height: (Platform.OS === 'ios' ? 50 : 60) + insets.bottom,
+          paddingBottom: insets.bottom,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          marginTop: 2,
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="home/index"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color }) => <Home size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="products/index"
+        options={{
+          title: 'Products',
+          tabBarIcon: ({ color }) => <Package size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="auction/index"
+        options={{
+          title: 'Auction',
+          tabBarIcon: ({ color }) => <Gavel size={26} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="checkout-history/index"
+        options={{
+          title: 'Bag',
+          tabBarIcon: ({ color }) => <ShoppingBag size={24} color={color} />,
+        }}
+      />
+      
+      {/* 1. Main Profile Tab */}
+      <Tabs.Screen
+        name="profile/index"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <User size={24} color={color} />,
+        }}
+      />
 
-  {/* 2. Products - points to products/index.tsx */}
-  <Tabs.Screen
-    name="products/index"
-    options={{
-      title: 'Products',
-      tabBarIcon: ({ color }) => <Package size={24} color={color} />,
-    }}
-  />
-
-  {/* 3. Auction - points to auction/index.tsx */}
-  <Tabs.Screen
-    name="auction/index"
-    options={{
-      title: 'Auction',
-      tabBarIcon: ({ color }) => <Gavel size={26} color={color} />,
-    }}
-  />
-
-  {/* 4. Bag - points to checkout-history/index.tsx */}
-  <Tabs.Screen
-    name="checkout-history/index"
-    options={{
-      title: 'Bag',
-      tabBarIcon: ({ color }) => <ShoppingBag size={24} color={color} />,
-    }}
-  />
-
-  {/* 5. Profile - points to profile/index.tsx */}
-  <Tabs.Screen
-    name="profile/index"
-    options={{
-      title: 'Profile',
-      tabBarIcon: ({ color }) => <User size={24} color={color} />,
-    }}
-  />
-</Tabs>
+      {/* 2. Hide the components folder from the Bottom Bar */}
+      <Tabs.Screen
+        name="profile/components/UserGrid"
+        options={{
+          href: null,
+        }}
+      />
+    </Tabs>
   );
 }

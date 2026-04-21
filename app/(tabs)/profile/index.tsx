@@ -1,221 +1,181 @@
+import { Colors } from '@/constants/Colors';
+import { useTheme } from '@/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-type User = {
-  displayName?: string;
-  email?: string;
-  uid?: string;
-};
+import UserGrid from './components/UserGrid';
 
 export default function ProfileScreen() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [logoutVisible, setLogoutVisible] = useState(false);
+  const { theme: themeKey, toggleTheme } = useTheme();
+  const theme = Colors[themeKey as keyof typeof Colors] || Colors.light;
 
   useEffect(() => {
     const loadUser = async () => {
       const stored = await AsyncStorage.getItem('firebaseUser');
-      if (stored) {
-        setUser(JSON.parse(stored));
-      }
+      if (stored) setUser(JSON.parse(stored));
     };
     loadUser();
   }, []);
 
-  const handleSignOut = async () => {
-    await AsyncStorage.removeItem('firebaseToken');
-    await AsyncStorage.removeItem('firebaseUser');
-    router.replace('/(auth)/sign-in');
+  const confirmLogout = async () => {
+    try {
+      setLogoutVisible(false);
+      await AsyncStorage.removeItem('firebaseUser');
+      router.replace('/(auth)/sign-in');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const MenuItem = ({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) => (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
-      <View style={styles.menuItemLeft}>
-        <Ionicons name={icon as any} size={24} color="#FFFFFF" />
-        <Text style={styles.menuLabel}>{label}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.3)" />
-    </TouchableOpacity>
+  const ringColor = themeKey === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
+  const blobColor = themeKey === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)';
+
+  const StatItem = ({ label, value }: { label: string; value: string }) => (
+    <View style={styles.statBox}>
+      <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: theme.secondaryText }]}>{label}</Text>
+    </View>
   );
 
   return (
-    <SafeAreaView style={styles.root}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {/* Profile Header */}
-        <View style={styles.profileHeader}>
-          <View style={styles.avatar}>
-            <Ionicons name="person" size={48} color="#FFFFFF" />
-          </View>
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{user?.displayName || 'User'}</Text>
-            <Text style={styles.profileEmail}>{user?.email || 'No email'}</Text>
+    <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
+      <StatusBar 
+        barStyle={themeKey === 'dark' ? "light-content" : "dark-content"} 
+        backgroundColor="transparent"
+        translucent
+      />
+      
+      <View style={[styles.ring1, { borderColor: ringColor }]} pointerEvents="none" />
+      <View style={[styles.ring2, { borderColor: ringColor }]} pointerEvents="none" />
+      <View style={[styles.blob, { backgroundColor: blobColor }]} pointerEvents="none" />
+
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.contentLayer}>
+        <View style={styles.topNav}>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Vault Profile</Text>
+          <View style={styles.topIcons}>
+            <TouchableOpacity onPress={toggleTheme} style={styles.iconBtn}>
+              <Ionicons 
+                name={themeKey === 'dark' ? "sunny-outline" : "moon-outline"} 
+                size={24} 
+                color={theme.text} 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setLogoutVisible(true)} style={[styles.iconBtn, { marginLeft: 16 }]}>
+              <Ionicons name="log-out-outline" size={24} color="#FF3B30" /> 
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Stats */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>12</Text>
-            <Text style={styles.statLabel}>Won Auctions</Text>
+        <View style={styles.headerSection}>
+          <View style={styles.avatarWrapper}>
+            <View style={[styles.avatarBorder, { borderColor: theme.text + '20' }]}>
+               <View style={[styles.avatar, { backgroundColor: theme.card }]}>
+                  <Ionicons name="person" size={42} color={theme.text} />
+               </View>
+            </View>
           </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>48</Text>
-            <Text style={styles.statLabel}>Active Bids</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>$2.5K</Text>
-            <Text style={styles.statLabel}>Total Spent</Text>
+          
+          <View style={styles.infoWrapper}>
+            <Text style={[styles.displayName, { color: theme.text }]}>
+              {user?.displayName || 'VIP Collector'}
+            </Text>
+            <View style={styles.statsRow}>
+              <StatItem label="Won" value="12" />
+              <StatItem label="Bids" value="48" />
+              <StatItem label="Rank" value="#4" />
+            </View>
           </View>
         </View>
 
-        {/* Menu Items */}
-        <View style={styles.menuSection}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <MenuItem
-            icon="person-outline"
-            label="Edit Profile"
-            onPress={() => alert('Edit profile coming soon')}
-          />
-          <MenuItem
-            icon="heart-outline"
-            label="Favorites"
-            onPress={() => alert('Favorites coming soon')}
-          />
-          <MenuItem
-            icon="settings-outline"
-            label="Settings"
-            onPress={() => alert('Settings coming soon')}
-          />
+        <View style={styles.bioSection}>
+          <Text style={[styles.bioText, { color: theme.secondaryText }]}>
+            Sourcing the worlds finest digital assets and physical rarities. 
+            Member since 2024.
+          </Text>
         </View>
 
-        <View style={styles.menuSection}>
-          <Text style={styles.sectionTitle}>Support</Text>
-          <MenuItem
-            icon="help-circle-outline"
-            label="Help & Support"
-            onPress={() => alert('Help coming soon')}
-          />
-          <MenuItem
-            icon="document-text-outline"
-            label="Terms & Privacy"
-            onPress={() => alert('Terms & Privacy coming soon')}
-          />
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: theme.text }]}>
+            <Text style={[styles.mainActionText, { color: theme.background }]}>Edit Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.secondaryActionBtn, { borderColor: theme.text + '30' }]}>
+            <Ionicons name="share-social-outline" size={20} color={theme.text} />
+          </TouchableOpacity>
         </View>
 
-        {/* Sign Out Button */}
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={20} color="#FF6B6B" />
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+        <UserGrid theme={theme} />
       </ScrollView>
+
+      <Modal visible={logoutVisible} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setLogoutVisible(false)}>
+          <View style={[styles.logoutCard, { backgroundColor: theme.background }]}>
+            <View style={styles.logoutContent}>
+              <Text style={[styles.logoutTitle, { color: theme.text }]}>Sign Out</Text>
+              <Text style={[styles.logoutSubtitle, { color: theme.secondaryText }]}>
+                Are you sure you want to log out?
+              </Text>
+            </View>
+            
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity 
+                style={styles.modalBtn} 
+                onPress={() => setLogoutVisible(false)}
+              >
+                <Text style={[styles.cancelBtnText, { color: theme.secondaryText }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.modalBtn} 
+                onPress={confirmLogout}
+              >
+                <Text style={styles.logoutBtnText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  container: {
-    padding: 24,
-    paddingBottom: 32,
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 20,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  profileEmail: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 32,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 16,
-    padding: 16,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.6)',
-    textAlign: 'center',
-  },
-  menuSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.5)',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    marginBottom: 8,
-  },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  menuLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(255,107,107,0.1)',
-    borderRadius: 12,
-    paddingVertical: 16,
-    marginTop: 12,
-  },
-  signOutText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FF6B6B',
-  },
+  root: { flex: 1, position: 'relative', overflow: 'hidden' },
+  contentLayer: { flex: 1, zIndex: 1 },
+  ring1: { position: 'absolute', width: 320, height: 320, borderRadius: 160, borderWidth: 1, top: -80, left: -80, zIndex: 0 },
+  ring2: { position: 'absolute', width: 260, height: 260, borderRadius: 130, borderWidth: 1, bottom: 100, right: -60, zIndex: 0 },
+  blob: { position: 'absolute', width: 140, height: 140, borderRadius: 70, top: 260, left: -30, zIndex: 0 },
+  topNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, height: 60 },
+  headerTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+  topIcons: { flexDirection: 'row', alignItems: 'center' },
+  iconBtn: { padding: 4 },
+  headerSection: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginTop: 10 },
+  avatarWrapper: { marginRight: 20 },
+  avatarBorder: { width: 90, height: 90, borderRadius: 45, borderWidth: 1, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed' },
+  avatar: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
+  infoWrapper: { flex: 1 },
+  displayName: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  statBox: { alignItems: 'flex-start' },
+  statValue: { fontSize: 16, fontWeight: '700' },
+  statLabel: { fontSize: 12, marginTop: 2, opacity: 0.7 },
+  bioSection: { paddingHorizontal: 20, marginTop: 20 },
+  bioText: { fontSize: 14, lineHeight: 20, fontWeight: '500' },
+  actionRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 12, marginTop: 25, marginBottom: 20 },
+  mainActionBtn: { flex: 1, height: 46, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  mainActionText: { fontWeight: '700', fontSize: 15 },
+  secondaryActionBtn: { width: 46, height: 46, borderRadius: 12, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  logoutCard: { width: '100%', padding: 20, elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 },
+  logoutContent: { marginBottom: 20 },
+  logoutTitle: { fontSize: 18, fontWeight: '800', marginBottom: 4 },
+  logoutSubtitle: { fontSize: 14, fontWeight: '500' },
+  modalActionRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 24 },
+  modalBtn: { paddingVertical: 8, paddingHorizontal: 4 },
+  cancelBtnText: { fontSize: 14, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
+  logoutBtnText: { fontSize: 14, fontWeight: '800', color: '#FF3B30', textTransform: 'uppercase', letterSpacing: 1 }
 });

@@ -6,14 +6,12 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(express.json());
 app.use(cors({
   origin: [process.env.FRONTEND_URL || 'http://localhost:8081', 'exp://localhost:8081'],
   credentials: true
 }));
 
-// Configure nodemailer with Gmail
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -22,15 +20,8 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Store OTPs in memory (in production, use a database)
 const otpStore = new Map();
 
-/**
- * POST /api/send-otp
- * Sends OTP to user's email
- * Body: { email: string }
- * Response: { success: boolean, message: string, otp: string (dev only) }
- */
 app.post('/api/send-otp', async (req, res) => {
   try {
     const { email } = req.body;
@@ -42,17 +33,14 @@ app.post('/api/send-otp', async (req, res) => {
       });
     }
 
-    // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Store OTP with email for 10 minutes (600 seconds)
     otpStore.set(email, {
       otp,
       createdAt: Date.now(),
       expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
     });
 
-    // Email HTML template
     const htmlTemplate = `
       <!DOCTYPE html>
       <html>
@@ -95,7 +83,6 @@ app.post('/api/send-otp', async (req, res) => {
       </html>
     `;
 
-    // Send email
     await transporter.sendMail({
       from: `"Auction App" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -105,11 +92,9 @@ app.post('/api/send-otp', async (req, res) => {
 
     console.log(`OTP sent to ${email}: ${otp}`);
 
-    // Return success (do NOT send OTP in production)
     res.json({
       success: true,
       message: `Verification code sent to ${email}`,
-      // In development, return OTP for testing. Remove in production!
       otp: process.env.NODE_ENV === 'development' ? otp : undefined,
     });
   } catch (error) {
@@ -122,12 +107,6 @@ app.post('/api/send-otp', async (req, res) => {
   }
 });
 
-/**
- * POST /api/verify-otp
- * Verifies OTP for email
- * Body: { email: string, otp: string }
- * Response: { success: boolean, message: string }
- */
 app.post('/api/verify-otp', (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -141,7 +120,6 @@ app.post('/api/verify-otp', (req, res) => {
 
     const storedOtpData = otpStore.get(email);
 
-    // Check if OTP exists for this email
     if (!storedOtpData) {
       return res.status(400).json({
         success: false,
@@ -149,7 +127,6 @@ app.post('/api/verify-otp', (req, res) => {
       });
     }
 
-    // Check if OTP has expired
     if (Date.now() > storedOtpData.expiresAt) {
       otpStore.delete(email);
       return res.status(400).json({
@@ -158,7 +135,6 @@ app.post('/api/verify-otp', (req, res) => {
       });
     }
 
-    // Check if OTP matches
     if (storedOtpData.otp !== otp) {
       return res.status(400).json({
         success: false,
@@ -166,7 +142,6 @@ app.post('/api/verify-otp', (req, res) => {
       });
     }
 
-    // OTP is valid, remove it from storage
     otpStore.delete(email);
 
     res.json({
@@ -183,12 +158,6 @@ app.post('/api/verify-otp', (req, res) => {
   }
 });
 
-/**
- * POST /api/resend-otp
- * Resends OTP to email
- * Body: { email: string }
- * Response: { success: boolean, message: string }
- */
 app.post('/api/resend-otp', async (req, res) => {
   try {
     const { email } = req.body;
@@ -200,17 +169,14 @@ app.post('/api/resend-otp', async (req, res) => {
       });
     }
 
-    // Generate new OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Update OTP in store
     otpStore.set(email, {
       otp,
       createdAt: Date.now(),
       expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
     });
 
-    // Email HTML template (same as send-otp)
     const htmlTemplate = `
       <!DOCTYPE html>
       <html>
@@ -252,7 +218,6 @@ app.post('/api/resend-otp', async (req, res) => {
       </html>
     `;
 
-    // Send email
     await transporter.sendMail({
       from: `"Auction App" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -265,7 +230,6 @@ app.post('/api/resend-otp', async (req, res) => {
     res.json({
       success: true,
       message: `Verification code resent to ${email}`,
-      // In development, return OTP for testing
       otp: process.env.NODE_ENV === 'development' ? otp : undefined,
     });
   } catch (error) {
@@ -278,12 +242,10 @@ app.post('/api/resend-otp', async (req, res) => {
   }
 });
 
-// Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Start server
 app.listen(PORT, () => {
   console.log(`\n✓ Auction Backend Server running on http://localhost:${PORT}`);
   console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);

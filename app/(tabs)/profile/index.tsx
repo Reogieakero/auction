@@ -1,18 +1,43 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { doc, setDoc } from 'firebase/firestore';
+import React, { useState } from 'react';
+import { Alert, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useProfile } from '@/hooks/useProfile';
+import { db } from '../../../constants/firebaseConfig';
+import EditProfileModal from './components/EditProfileModal';
 import LogoutModal from './components/LogoutModal';
 import UserGrid from './components/UserGrid';
 
 export default function ProfileScreen() {
   const { 
-    user, theme, themeKey, toggleTheme, 
+    user, profileData, theme, themeKey, toggleTheme, 
     logoutVisible, setLogoutVisible, confirmLogout, 
     handleOpenShop, ringColor, blobColor 
   } = useProfile();
+
+  const [editVisible, setEditVisible] = useState(false);
+
+  const handleSaveToFirestore = async (newData: any) => {
+    if (!user?.uid) {
+      Alert.alert("Error", "No User ID found. Please sign in again.");
+      return;
+    }
+
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      
+      // setDoc with merge: true creates the document if it doesn't exist
+      await setDoc(userRef, newData, { merge: true });
+      
+      Alert.alert("Success", "Profile details locked in the Vault.");
+      setEditVisible(false);
+    } catch (error: any) {
+      console.error("Firebase Error:", error);
+      Alert.alert("Vault Error", error.message);
+    }
+  };
 
   const StatItem = ({ label, value }: { label: string; value: string }) => (
     <View style={styles.statBox}>
@@ -51,9 +76,13 @@ export default function ProfileScreen() {
             </View>
           </View>
           <View style={styles.infoWrapper}>
-            <Text style={[styles.displayName, { color: theme.text }]}>{user?.displayName || 'VIP Collector'}</Text>
+            <Text style={[styles.displayName, { color: theme.text }]}>
+              {profileData.displayName}
+            </Text>
             <View style={styles.statsRow}>
-              <StatItem label="Won" value="12" /><StatItem label="Bids" value="48" /><StatItem label="Rank" value="#4" />
+              <StatItem label="Won" value="12" />
+              <StatItem label="Bids" value="48" />
+              <StatItem label="Rank" value="#4" />
             </View>
           </View>
         </View>
@@ -65,7 +94,10 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.actionRow}>
-          <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: theme.text }]}>
+          <TouchableOpacity 
+            style={[styles.mainActionBtn, { backgroundColor: theme.text }]}
+            onPress={() => setEditVisible(true)}
+          >
             <Text style={[styles.mainActionText, { color: theme.background }]}>Edit Profile</Text>
           </TouchableOpacity>
           
@@ -75,14 +107,19 @@ export default function ProfileScreen() {
           >
             <Ionicons name="storefront-outline" size={20} color={theme.text} />
           </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.secondaryActionBtn, { borderColor: theme.text + '30' }]}>
-            <Ionicons name="share-social-outline" size={20} color={theme.text} />
-          </TouchableOpacity>
         </View>
 
         <UserGrid theme={theme} />
       </ScrollView>
+
+      {/* MODALS */}
+      <EditProfileModal 
+        visible={editVisible}
+        onClose={() => setEditVisible(false)}
+        initialData={profileData}
+        onSave={handleSaveToFirestore}
+        theme={theme}
+      />
 
       <LogoutModal 
         visible={logoutVisible} 

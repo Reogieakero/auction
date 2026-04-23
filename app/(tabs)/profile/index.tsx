@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { doc, setDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useProfile } from '@/hooks/useProfile';
 import { db } from '../../../constants/firebaseConfig';
 import EditProfileModal from './components/EditProfileModal';
+import FeedbackModal from './components/FeedbackModal';
 import LogoutModal from './components/LogoutModal';
 import UserGrid from './components/UserGrid';
 
@@ -18,24 +19,33 @@ export default function ProfileScreen() {
   } = useProfile();
 
   const [editVisible, setEditVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'success' as 'success' | 'error'
+  });
+
+  const getGenderIcon = (gender: string) => {
+    switch (gender?.toLowerCase()) {
+      case 'male': return 'male';
+      case 'female': return 'female';
+      default: return 'transgender';
+    }
+  };
 
   const handleSaveToFirestore = async (newData: any) => {
     if (!user?.uid) {
-      Alert.alert("Error", "No User ID found. Please sign in again.");
+      setAlertConfig({ visible: true, title: "Error", message: "Sign in to save changes.", type: 'error' });
       return;
     }
-
     try {
       const userRef = doc(db, 'users', user.uid);
-      
-      // setDoc with merge: true creates the document if it doesn't exist
       await setDoc(userRef, newData, { merge: true });
-      
-      Alert.alert("Success", "Profile details locked in the Vault.");
+      setAlertConfig({ visible: true, title: "Success", message: "Your profile has been updated.", type: 'success' });
       setEditVisible(false);
     } catch (error: any) {
-      console.error("Firebase Error:", error);
-      Alert.alert("Vault Error", error.message);
+      setAlertConfig({ visible: true, title: "Update Failed", message: "Connection error.", type: 'error' });
     }
   };
 
@@ -56,7 +66,7 @@ export default function ProfileScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.contentLayer}>
         <View style={styles.topNav}>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Vault Profile</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Profile</Text>
           <View style={styles.topIcons}>
             <TouchableOpacity onPress={toggleTheme} style={styles.iconBtn}>
               <Ionicons name={themeKey === 'dark' ? "sunny-outline" : "moon-outline"} size={24} color={theme.text} />
@@ -76,9 +86,17 @@ export default function ProfileScreen() {
             </View>
           </View>
           <View style={styles.infoWrapper}>
-            <Text style={[styles.displayName, { color: theme.text }]}>
-              {profileData.displayName}
-            </Text>
+            <View style={styles.nameRow}>
+              <Text style={[styles.displayName, { color: theme.text }]}>
+                {profileData.displayName}
+              </Text>
+              <Ionicons 
+                name={getGenderIcon(profileData.gender)} 
+                size={18} 
+                color={theme.secondaryText} 
+                style={styles.genderIcon}
+              />
+            </View>
             <View style={styles.statsRow}>
               <StatItem label="Won" value="12" />
               <StatItem label="Bids" value="48" />
@@ -89,7 +107,7 @@ export default function ProfileScreen() {
 
         <View style={styles.bioSection}>
           <Text style={[styles.bioText, { color: theme.secondaryText }]}>
-            Sourcing the worlds finest digital assets and physical rarities. Member since 2024.
+            {(profileData as any).bio || "Add a bio to let others know about you."}
           </Text>
         </View>
 
@@ -112,7 +130,15 @@ export default function ProfileScreen() {
         <UserGrid theme={theme} />
       </ScrollView>
 
-      {/* MODALS */}
+      <FeedbackModal 
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        theme={theme}
+        onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+      />
+
       <EditProfileModal 
         visible={editVisible}
         onClose={() => setEditVisible(false)}
@@ -146,7 +172,9 @@ const styles = StyleSheet.create({
   avatarBorder: { width: 90, height: 90, borderRadius: 45, borderWidth: 1, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed' },
   avatar: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
   infoWrapper: { flex: 1 },
-  displayName: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 6 },
+  displayName: { fontSize: 20, fontWeight: '700' },
+  genderIcon: { opacity: 0.6 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   statBox: { alignItems: 'flex-start' },
   statValue: { fontSize: 16, fontWeight: '700' },

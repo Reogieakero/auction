@@ -12,6 +12,7 @@ export const useProfile = () => {
     displayName: '',
     gender: '',
     birthday: '',
+    bio: '', 
   });
   const [logoutVisible, setLogoutVisible] = useState(false);
   const { theme: themeKey, toggleTheme } = useTheme();
@@ -39,6 +40,7 @@ export const useProfile = () => {
           displayName: data.displayName || user.email || 'VIP Collector',
           gender: data.gender || '',
           birthday: data.birthday || '',
+          bio: data.bio || '', // Map the bio from Firestore to your state
         });
       }
     });
